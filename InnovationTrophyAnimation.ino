@@ -3,7 +3,7 @@
 #define PIN 0
 
 int minLEDNum = 0;
-int maxLEDNum = 9;
+int maxLEDNum = 30;
 
 int animStartLEDNum = 1;
 
@@ -16,12 +16,8 @@ uint32_t cExelonBlueBright = strip.Color(0, 0, 204);
 uint32_t cExelonOrangeBright = strip.Color(255, 128, 0); 
 uint32_t cExelonGreenBright = strip.Color(0, 153, 0);
 
-uint32_t cExelonBlueDim = strip.Color(0, 0, 102); 
-uint32_t cExelonOrangeDim = strip.Color(60, 30, 0); 
-uint32_t cExelonGreenDim = strip.Color(0, 76, 0);
-
 uint32_t cLampBright = strip.Color(255, 255, 0); 
-uint32_t cWhiteBright = strip.Color(255, 255, 255); 
+//uint32_t cWhiteBright = strip.Color(255, 255, 255); 
 uint32_t cOff = strip.Color(0, 0, 0);
 
 void setup(){
@@ -31,34 +27,30 @@ void setup(){
 }
 
 void loop(){
-  animationController(random(1,5),random(5));
+  animationController(random(1,4),random(5));
 }
 
 // the main animation controller
 void animationController(uint8_t animationNum, uint8_t repeatCount){
    switch (animationNum){
      case 1:
-       colorWipe(cExelonBlueDim, 1, 60);
-       colorWipe(cExelonOrangeDim, 1, 60);
-       colorWipe(cExelonGreenDim, 1, 60);
+       pulseWave(cExelonBlueBright, 15, 0.80, repeatCount, 20);
+       pulseWave(cExelonOrangeBright, 15, 0.80, repeatCount, 20);
+       pulseWave(cExelonGreenBright, 15, 0.80, repeatCount, 20);
        break;
      case 2:
-       paparazzi(cExelonBlueBright, 1, repeatCount*30, 50);
-       paparazzi(cExelonOrangeBright, 1, repeatCount*30, 50);
-       paparazzi(cExelonGreenBright, 1, repeatCount*30, 50);
+       rainbowCycle(repeatCount, 5);
        break;
      case 3:
-       paparazzi(cWhiteBright, 1, repeatCount*30, 50);
-       break;
-     case 4:
-       pulseWave(cExelonBlueBright, 6, 0.40, 1, 100);
-       pulseWave(cExelonOrangeBright, 6, 0.40, 1, 100);
-       pulseWave(cExelonGreenBright, 6, 0.40, 1, 100);
+       colorWipe(cExelonBlueBright, repeatCount, 40);
+       colorWipe(cExelonOrangeBright, repeatCount, 40);
+       colorWipe(cExelonGreenBright, repeatCount, 40);
        break;
    }
 }
 
-// Set the lamp pixels for the light-bulb void lamp(uint32_t c){
+// Set the lamp pixels for the light-bulb 
+void lamp(uint32_t c){
   for(int j=minLEDNum; j<animStartLEDNum; j++){
     strip.setPixelColor(j, c);
   }
@@ -84,26 +76,29 @@ void pulseWave(uint32_t c, uint8_t tailLength, double fadePercent, uint8_t repea
   }
 }
 
-// Fill the dots one after the other with a color void colorWipe(uint32_t c, uint8_t repeatCount, uint8_t wait){
-  animationOff();
-  for(uint8_t r=0; r<repeatCount; r++){  // how many times to cycle
-    for(uint16_t i=animStartLEDNum; i<strip.numPixels(); i++) {
-        strip.setPixelColor(i, c);
-        strip.show();
-        delay(wait);
+
+// Fill the dots one after the other with a color
+void colorWipe(uint32_t c, uint8_t repeatCount, uint8_t wait) {
+  for(uint8_t r=0; r<repeatCount; r++) { // how many times to cycle
+   for(uint16_t i=animStartLEDNum; i<strip.numPixels(); i++) {
+      strip.setPixelColor(i, c);
+      strip.show();
+      delay(wait);
     }
+    animationOff(); // turn off animation pixels
+    strip.show();
   }
 }
 
-// Randomly flash lights like flashbulbs void paparazzi(uint32_t c, uint8_t minJump, uint8_t repeatCount, uint8_t wait){
-  for(uint8_t r=0; r<repeatCount; r++){  // how many times to cycle
-    ranLEDNum = random(animStartLEDNum,maxLEDNum);
-    if( ranLEDNum == lastRanLEDNum) continue;
-    if( abs(ranLEDNum - lastRanLEDNum) <= minJump) continue;
-    animationOff();
-    strip.setPixelColor(ranLEDNum, c);
+
+// Slightly different, this makes the rainbow equally distributed throughout
+void rainbowCycle(uint8_t repeatCount, uint8_t wait) {
+  uint16_t i, j;
+  for(j=0; j<256*repeatCount; j++) { // repeatCount cycles of all colors on wheel
+    for(i=animStartLEDNum; i< strip.numPixels(); i++) {
+      strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
+    }
     strip.show();
-    lastRanLEDNum = ranLEDNum;
     delay(wait);
   }
 }
@@ -117,10 +112,11 @@ void animationOff(){
   strip.show();
 }
 
-// Get a color value by segment (R=1, G=2, B=3) uint8_t getPixelColorComponent(uint8_t pixelNum, uint8_t segment){
+// Get a color value by segment (R=1, G=2, B=3) 
+uint8_t getPixelColorComponent(uint8_t pixelNum, uint8_t segment){
   uint8_t segmentColorValue;
   uint32_t c = strip.getPixelColor(pixelNum);
-  switch( segment){
+  switch( segment ){
     case 1:
       segmentColorValue = ( c >> 16) & 255;
       break;
@@ -132,4 +128,18 @@ void animationOff(){
       break;
   }
   return segmentColorValue;
+}
+
+// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+uint32_t Wheel(byte WheelPos) {
+  if(WheelPos < 85) {
+   return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+  } else if(WheelPos < 170) {
+   WheelPos -= 85;
+   return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  } else {
+   WheelPos -= 170;
+   return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
 }
